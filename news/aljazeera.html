@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أخبار عاجلة</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: #0a0f1e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .ticker-container {
+            width: 100%;
+            max-width: 100%;
+            height: 56px;
+            background: linear-gradient(135deg, #c00 0%, #900 100%);
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        .ticker-label {
+            background: #000;
+            color: #fff;
+            font-weight: bold;
+            padding: 6px 12px;
+            white-space: nowrap;
+            font-size: 14px;
+            z-index: 2;
+            box-shadow: 0 0 10px rgba(255,0,0,0.5);
+        }
+        .ticker-wrap {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+        .ticker {
+            display: inline-block;
+            white-space: nowrap;
+            animation: ticker 20s linear infinite;
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+            padding-right: 100%;
+        }
+        @keyframes ticker {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .ticker:hover { animation-play-state: paused; }
+        .ticker a {
+            color: #fff;
+            text-decoration: none;
+            margin-left: 30px;
+        }
+        .ticker a:visited { color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="ticker-container">
+        <div class="ticker-label">🔴 عاجل</div>
+        <div class="ticker-wrap">
+            <div class="ticker" id="ticker">⏳ جارٍ تحميل الأخبار...</div>
+        </div>
+    </div>
+    <script>
+        const RSS_URL = 'https://api.rss2json.com/v1/api.json?rss_url=https://www.aljazeera.net/xml/rss';
+
+        function loadTicker() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', RSS_URL, true);
+            xhr.onload = function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    var data = JSON.parse(xhr.responseText);
+                    var ticker = document.getElementById('ticker');
+                    var html = '';
+                    if (data.items && data.items.length > 0) {
+                        data.items.forEach(function(item) {
+                            html += '<a href="' + item.link + '" target="_blank">' + item.title + '</a>';
+                        });
+                        ticker.innerHTML = html;
+                    } else {
+                        ticker.innerHTML = '<span style="color:#fff">لا توجد أخبار حالياً</span>';
+                    }
+                } else {
+                    document.getElementById('ticker').innerHTML = '<span style="color:#ff0">⚠️ خطأ في التحميل</span>';
+                }
+            };
+            xhr.onerror = function() {
+                document.getElementById('ticker').innerHTML = '<span style="color:#fff">❌ لا يمكن تحميل الأخبار حالياً</span>';
+            };
+            xhr.send();
+        }
+        loadTicker();
+    </script>
+</body>
+</html>
