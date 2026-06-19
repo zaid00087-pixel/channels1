@@ -69,7 +69,6 @@
             font-size: 0.7rem;
             color: #5a6680;
         }
-        a { color: inherit; text-decoration: none; }
     </style>
 </head>
 <body>
@@ -83,58 +82,77 @@
     <div class="news-list" id="newsList"></div>
 
     <script>
-        var RSS_URL = 'https://www.aljazeera.net/xml/rss';
+        // رابط وسيط CORS لجلب RSS مباشرة
+        var CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+        var RSS_FEED = 'https://www.aljazeera.net/xml/rss';
+        var API_URL = CORS_PROXY + encodeURIComponent(RSS_FEED);
+
+        function parseRSS(xmlText) {
+            var parser = new DOMParser();
+            var xmlDoc = parser.parseFromString(xmlText, "text/xml");
+            var items = xmlDoc.querySelectorAll('item');
+            var newsList = [];
+            items.forEach(function(item) {
+                var title = item.querySelector('title')?.textContent || '';
+                var link = item.querySelector('link')?.textContent || '';
+                var description = item.querySelector('description')?.textContent || '';
+                var pubDate = item.querySelector('pubDate')?.textContent || '';
+                // استخراج الصورة من الوسم <enclosure> أو <media:content>
+                var enclosure = item.querySelector('enclosure');
+                var image = enclosure ? enclosure.getAttribute('url') : '';
+                if (!image) {
+                    var mediaContent = item.querySelector('media\\:content, content');
+                    if (mediaContent) image = mediaContent.getAttribute('url');
+                }
+                newsList.push({
+                    title: title,
+                    link: link,
+                    description: description,
+                    pubDate: pubDate,
+                    image: image
+                });
+            });
+            return newsList;
+        }
 
         function loadNews() {
             var xhr = new XMLHttpRequest();
-            xhr.open('GET', RSS_URL, true);
-            
+            xhr.open('GET', API_URL, true);
             xhr.onload = function() {
-                var list = document.getElementById('newsList');
                 var loading = document.getElementById('loading');
                 var error = document.getElementById('error');
-                
+                var list = document.getElementById('newsList');
                 if (xhr.status >= 200 && xhr.status < 300) {
                     try {
-                        var data = JSON.parse(xhr.responseText);
-                        if (data.items && data.items.length > 0) {
+                        var newsData = parseRSS(xhr.responseText);
+                        if (newsData.length > 0) {
                             loading.style.display = 'none';
-                            data.items.forEach(function(item) {
+                            newsData.forEach(function(item) {
                                 var card = document.createElement('div');
                                 card.className = 'news-card';
                                 card.onclick = function() {
                                     window.open(item.link, '_blank');
                                 };
-                                
-                                var imgSrc = item.thumbnail || (item.enclosure && item.enclosure.link) || '';
                                 var imgHtml = '';
-                                if (imgSrc) {
-                                    imgHtml = '<img src="' + imgSrc + '" alt="' + item.title + '" onerror="this.style.display=\'none\'">';
+                                if (item.image) {
+                                    imgHtml = '<img src="' + item.image + '" alt="' + item.title + '" onerror="this.style.display=\'none\'">';
                                 }
-                                
-                                var desc = item.description || '';
-                                desc = desc.substring(0, 120);
-                                
+                                var desc = (item.description || '').substring(0, 120);
                                 var dateStr = '';
                                 try {
                                     dateStr = new Date(item.pubDate).toLocaleDateString('ar-SA');
-                                } catch(e) {
-                                    dateStr = '';
-                                }
-                                
+                                } catch(e) {}
                                 card.innerHTML = imgHtml +
                                     '<div class="card-body">' +
                                     '<h2>' + item.title + '</h2>' +
                                     '<div class="desc">' + desc + '...</div>' +
                                     '<div class="date">📅 ' + dateStr + '</div>' +
                                     '</div>';
-                                
                                 list.appendChild(card);
                             });
                         } else {
                             loading.style.display = 'none';
                             error.style.display = 'block';
-                            error.textContent = '❌ لا توجد أخبار في الوقت الحالي';
                         }
                     } catch(e) {
                         loading.style.display = 'none';
@@ -145,15 +163,13 @@
                     error.style.display = 'block';
                 }
             };
-            
             xhr.onerror = function() {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('error').style.display = 'block';
             };
-            
             xhr.send();
         }
-        
+
         loadNews();
     </script>
 </body>
