@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -29,12 +30,6 @@
             border: 1px solid #1e2a3a;
         }
         .header h1 { font-size: 1.5rem; color: var(--accent); margin: 0; }
-        .header .source { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
-        .loading, .error {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--muted);
-        }
         .news-list { display: flex; flex-direction: column; gap: 12px; }
         .news-card {
             background: var(--card);
@@ -42,9 +37,7 @@
             overflow: hidden;
             border: 1px solid #1e2a3a;
             cursor: pointer;
-            transition: border-color 0.2s;
         }
-        .news-card:active { border-color: var(--accent); }
         .news-card img {
             width: 100%;
             height: 180px;
@@ -58,7 +51,6 @@
             font-weight: 600;
             margin-bottom: 6px;
             color: #ffffff;
-            line-height: 1.4;
         }
         .news-card .card-body .desc {
             font-size: 0.85rem;
@@ -74,103 +66,49 @@
 <body>
     <div class="header">
         <h1>آخر أخبار الجزيرة</h1>
-        <div class="source">يتم التحديث تلقائياً</div>
     </div>
-
-    <div class="loading" id="loading">⏳ جارٍ تحميل الأخبار...</div>
-    <div class="error" id="error" style="display:none;">❌ لا يمكن تحميل الأخبار حالياً</div>
     <div class="news-list" id="newsList"></div>
 
     <script>
-        // رابط وسيط CORS لجلب RSS مباشرة
-        var CORS_PROXY = 'https://api.allorigins.win/raw?url=';
-        var RSS_FEED = 'https://www.aljazeera.net/xml/rss';
-        var API_URL = CORS_PROXY + encodeURIComponent(RSS_FEED);
+        // رابط ملف JSON الموجود في نفس المجلد
+        const JSON_URL = 'aljazeera.json';
 
-        function parseRSS(xmlText) {
-            var parser = new DOMParser();
-            var xmlDoc = parser.parseFromString(xmlText, "text/xml");
-            var items = xmlDoc.querySelectorAll('item');
-            var newsList = [];
-            items.forEach(function(item) {
-                var title = item.querySelector('title')?.textContent || '';
-                var link = item.querySelector('link')?.textContent || '';
-                var description = item.querySelector('description')?.textContent || '';
-                var pubDate = item.querySelector('pubDate')?.textContent || '';
-                // استخراج الصورة من الوسم <enclosure> أو <media:content>
-                var enclosure = item.querySelector('enclosure');
-                var image = enclosure ? enclosure.getAttribute('url') : '';
-                if (!image) {
-                    var mediaContent = item.querySelector('media\\:content, content');
-                    if (mediaContent) image = mediaContent.getAttribute('url');
+        function displayNews(data) {
+            const list = document.getElementById('newsList');
+            list.innerHTML = '';
+            data.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'news-card';
+                card.onclick = () => window.open(item.link, '_blank');
+
+                let imgHtml = '';
+                if (item.image) {
+                    imgHtml = `<img src="${item.image}" alt="${item.title}" onerror="this.style.display='none'">`;
                 }
-                newsList.push({
-                    title: title,
-                    link: link,
-                    description: description,
-                    pubDate: pubDate,
-                    image: image
-                });
+                const desc = (item.description || '').substring(0, 120);
+                let dateStr = '';
+                try {
+                    dateStr = new Date(item.pubDate).toLocaleDateString('ar-SA');
+                } catch(e) {}
+
+                card.innerHTML = imgHtml + `
+                    <div class="card-body">
+                        <h2>${item.title}</h2>
+                        <div class="desc">${desc}...</div>
+                        <div class="date">📅 ${dateStr}</div>
+                    </div>
+                `;
+                list.appendChild(card);
             });
-            return newsList;
         }
 
-        function loadNews() {
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', API_URL, true);
-            xhr.onload = function() {
-                var loading = document.getElementById('loading');
-                var error = document.getElementById('error');
-                var list = document.getElementById('newsList');
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    try {
-                        var newsData = parseRSS(xhr.responseText);
-                        if (newsData.length > 0) {
-                            loading.style.display = 'none';
-                            newsData.forEach(function(item) {
-                                var card = document.createElement('div');
-                                card.className = 'news-card';
-                                card.onclick = function() {
-                                    window.open(item.link, '_blank');
-                                };
-                                var imgHtml = '';
-                                if (item.image) {
-                                    imgHtml = '<img src="' + item.image + '" alt="' + item.title + '" onerror="this.style.display=\'none\'">';
-                                }
-                                var desc = (item.description || '').substring(0, 120);
-                                var dateStr = '';
-                                try {
-                                    dateStr = new Date(item.pubDate).toLocaleDateString('ar-SA');
-                                } catch(e) {}
-                                card.innerHTML = imgHtml +
-                                    '<div class="card-body">' +
-                                    '<h2>' + item.title + '</h2>' +
-                                    '<div class="desc">' + desc + '...</div>' +
-                                    '<div class="date">📅 ' + dateStr + '</div>' +
-                                    '</div>';
-                                list.appendChild(card);
-                            });
-                        } else {
-                            loading.style.display = 'none';
-                            error.style.display = 'block';
-                        }
-                    } catch(e) {
-                        loading.style.display = 'none';
-                        error.style.display = 'block';
-                    }
-                } else {
-                    loading.style.display = 'none';
-                    error.style.display = 'block';
-                }
-            };
-            xhr.onerror = function() {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('error').style.display = 'block';
-            };
-            xhr.send();
-        }
-
-        loadNews();
+        // جلب البيانات من ملف JSON محلي
+        fetch(JSON_URL)
+            .then(response => response.json())
+            .then(data => displayNews(data))
+            .catch(() => {
+                document.getElementById('newsList').innerHTML = '<p style="color:#aaa;text-align:center">❌ لا يمكن تحميل الأخبار حالياً</p>';
+            });
     </script>
 </body>
 </html>
